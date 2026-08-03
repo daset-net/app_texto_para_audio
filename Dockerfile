@@ -9,10 +9,14 @@ RUN apt-get update && apt-get install -y wget ffmpeg && rm -rf /var/lib/apt/list
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create models directory and download the Faber voice
+# Create models directory and download the voices
 RUN mkdir -p models && \
     wget -q -O models/pt_BR-faber-medium.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx" && \
-    wget -q -O models/pt_BR-faber-medium.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx.json"
+    wget -q -O models/pt_BR-faber-medium.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx.json" && \
+    wget -q -O models/pt_BR-cadu-medium.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx" && \
+    wget -q -O models/pt_BR-cadu-medium.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx.json" && \
+    wget -q -O models/pt_BR-jeff-medium.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/jeff/medium/pt_BR-jeff-medium.onnx" && \
+    wget -q -O models/pt_BR-jeff-medium.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/jeff/medium/pt_BR-jeff-medium.onnx.json"
 
 # Copy application files
 COPY main.py .

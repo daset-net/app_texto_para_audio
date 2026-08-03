@@ -15,7 +15,8 @@ load_dotenv()
 app = FastAPI(title="API Texto para Áudio (REST)")
 
 # Configuração via variáveis de ambiente
-MODEL_PATH = os.environ.get("MODEL_PATH", "models/pt_BR-faber-medium.onnx")
+MODELS_DIR = os.environ.get("MODELS_DIR", "models")
+DEFAULT_VOICE = "pt_BR-faber-medium"
 API_TOKEN = os.environ.get("API_TOKEN", "")
 ENABLE_WEB_INTERFACE = os.environ.get("ENABLE_WEB_INTERFACE", "false").lower() == "true"
 
@@ -34,28 +35,49 @@ def get_api_key(api_key_header: str = Security(api_key_header)):
         detail="Acesso não autorizado. Token inválido ou ausente."
     )
 
-voice = None
+voices = {}
 
 @app.on_event("startup")
 async def startup_event():
-    global voice
-    print(f"Buscando modelo de voz em: {MODEL_PATH}")
-    if not os.path.exists(MODEL_PATH):
-        print(f"AVISO: Arquivo do modelo não encontrado: {MODEL_PATH}")
+    global voices
+    print(f"Buscando modelos de voz em: {MODELS_DIR}")
+    if not os.path.exists(MODELS_DIR):
+        print(f"AVISO: Diretório de modelos não encontrado: {MODELS_DIR}")
     else:
-        try:
-            voice = PiperVoice.load(MODEL_PATH)
-            print(f"Modelo de voz carregado com sucesso!")
-        except Exception as e:
-            print(f"Erro ao carregar o modelo de voz: {e}")
+        for filename in os.listdir(MODELS_DIR):
+            if filename.endswith(".onnx"):
+                voice_name = filename[:-5]
+                model_path = os.path.join(MODELS_DIR, filename)
+                try:
+                    voices[voice_name] = PiperVoice.load(model_path)
+                    print(f"Voz '{voice_name}' carregada com sucesso!")
+                except Exception as e:
+                    print(f"Erro ao carregar voz '{voice_name}': {e}")
+                    
+        if not voices:
+            print("AVISO: Nenhuma voz foi carregada.")
 
 class TextRequest(BaseModel):
     text: str
+    voice: str = DEFAULT_VOICE
+
+@app.get("/api/voices")
+async def get_voices():
+    return {"voices": list(voices.keys()), "default": DEFAULT_VOICE}
 
 @app.post("/api/synthesize")
 async def synthesize_text(req: TextRequest, api_key: str = Depends(get_api_key)):
-    if not voice:
-        raise HTTPException(status_code=503, detail="O serviço de voz não está disponível (modelo não carregado).")
+    if not voices:
+        raise HTTPException(status_code=503, detail="O serviço de voz não está disponível (nenhum modelo carregado).")
+    
+    selected_voice_name = req.voice
+    if selected_voice_name not in voices:
+        if DEFAULT_VOICE in voices:
+            selected_voice_name = DEFAULT_VOICE
+        else:
+            selected_voice_name = list(voices.keys())[0]
+            
+    selected_voice = voices[selected_voice_name]
     
     text = req.text.strip()
     if not text:
@@ -66,7 +88,7 @@ async def synthesize_text(req: TextRequest, api_key: str = Depends(get_api_key))
     try:
         # Gerar o áudio WAV corretamente
         with wave.open(audio_buffer, "wb") as wav_file:
-            voice.synthesize_wav(text, wav_file)
+            selected_voice.synthesize_wav(text, wav_file)
         
         audio_buffer.seek(0)
         

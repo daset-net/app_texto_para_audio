@@ -26,6 +26,11 @@
         <label>Token da API (Se configurado no .env):</label>
         <input type="text" id="apiToken" placeholder="sk_piper_...">
         
+        <label>Voz:</label>
+        <select id="voiceSelect" style="width: 100%; box-sizing: border-box; margin-bottom: 20px; padding: 12px; border-radius: 6px; border: 1px solid #ddd; font-size: 15px;">
+            <option value="">Carregando vozes...</option>
+        </select>
+        
         <label>Texto para converter em voz:</label>
         <textarea id="textInput" rows="5" placeholder="Olá! Digite seu texto aqui para testar a API."></textarea>
         
@@ -39,9 +44,50 @@
     </div>
 
     <script>
+        // Carregar vozes ao iniciar
+        async function loadVoices() {
+            try {
+                const response = await fetch('/api/voices');
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('voiceSelect');
+                    select.innerHTML = '';
+                    
+                    if (data.voices.length === 0) {
+                        const option = document.createElement('option');
+                        option.textContent = 'Nenhuma voz disponível';
+                        select.appendChild(option);
+                        return;
+                    }
+
+                    data.voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice;
+                        // Formata o nome da voz para exibição
+                        let displayName = voice;
+                        if (voice.startsWith("pt_BR-")) {
+                            displayName = "Piper " + voice.substring(6) + " (Português)";
+                        }
+                        option.textContent = displayName;
+                        if (voice === data.default) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                }
+            } catch (err) {
+                console.error('Erro ao carregar vozes:', err);
+                const select = document.getElementById('voiceSelect');
+                select.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadVoices);
+
         document.getElementById('btnSynthesize').addEventListener('click', async () => {
             const text = document.getElementById('textInput').value.trim();
             const token = document.getElementById('apiToken').value.trim();
+            const voice = document.getElementById('voiceSelect').value;
             const errorDiv = document.getElementById('error');
             const audioContainer = document.getElementById('audioContainer');
             const audioPlayer = document.getElementById('audioPlayer');
@@ -68,7 +114,7 @@
                 const response = await fetch('/api/synthesize', {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({ text })
+                    body: JSON.stringify({ text, voice })
                 });
 
                 if (!response.ok) {
