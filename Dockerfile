@@ -2,8 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install wget to download the model
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+# Install wget to download the model and ffmpeg for audio conversion
+RUN apt-get update && apt-get install -y wget ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
 COPY requirements.txt .

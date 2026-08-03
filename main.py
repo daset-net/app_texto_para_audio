@@ -6,6 +6,7 @@ from piper import PiperVoice
 import io
 import wave
 import os
+import subprocess
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente do arquivo .env, se existir
@@ -72,10 +73,22 @@ async def synthesize_text(req: TextRequest, api_key: str = Depends(get_api_key))
         
         audio_buffer.seek(0)
         
-        # Como é uma API REST, retornamos o binário do WAV direto
+        # Converter WAV para OGG usando ffmpeg (ideal para WhatsApp)
+        process = subprocess.Popen(
+            ['ffmpeg', '-i', 'pipe:0', '-c:a', 'libopus', '-b:a', '32k', '-v', 'error', '-f', 'ogg', 'pipe:1'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        ogg_data, err = process.communicate(input=audio_buffer.read())
+        
+        if process.returncode != 0:
+            print(f"Erro no FFmpeg: {err.decode('utf-8')}")
+            raise Exception("Falha ao converter áudio para OGG")
+        
         return Response(
-            content=audio_buffer.read(), 
-            media_type="audio/wav"
+            content=ogg_data, 
+            media_type="audio/ogg"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na síntese: {str(e)}")
