@@ -63,8 +63,11 @@ async def synthesize_text(req: TextRequest, api_key: str = Depends(get_api_key))
     audio_buffer = io.BytesIO()
     
     try:
-        # Gerar o áudio usando o buffer em memória
+        # Configurar o arquivo WAV manualmente com os parâmetros da voz
         with wave.open(audio_buffer, "wb") as wav_file:
+            wav_file.setnchannels(1)       # Mono
+            wav_file.setsampwidth(2)       # 16-bit (2 bytes)
+            wav_file.setframerate(voice.config.sample_rate)
             voice.synthesize(text, wav_file)
         
         audio_buffer.seek(0)
