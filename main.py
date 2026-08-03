@@ -77,16 +77,28 @@ async def synthesize_text(req: TextRequest, api_key: str = Depends(get_api_key))
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        ogg_data, err = process.communicate(input=audio_buffer.read())
-        
+        # Com prazo: ffmpeg travado deixaria a requisição pendurada para sempre
+        try:
+            ogg_data, err = process.communicate(input=audio_buffer.read(), timeout=60)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            raise HTTPException(status_code=504, detail="A conversão do áudio demorou demais e foi cancelada.")
+
         if process.returncode != 0:
             print(f"Erro no FFmpeg: {err.decode('utf-8')}")
             raise Exception("Falha ao converter áudio para OGG")
-        
+
+        # O nome e o codec vão declarados: o que sai daqui é opus, e quem baixa
+        # pelo navegador ou pelo curl não salva mais como .wav sem querer.
         return Response(
-            content=ogg_data, 
-            media_type="audio/ogg"
+            content=ogg_data,
+            media_type="audio/ogg; codecs=opus",
+            headers={"Content-Disposition": 'attachment; filename="audio.ogg"'}
         )
+    except HTTPException:
+        # O 504 da conversão travada não pode virar 500 aqui embaixo
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na síntese: {str(e)}")
 
