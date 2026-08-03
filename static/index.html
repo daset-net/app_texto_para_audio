@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste da API de Áudio</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f4f9; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #111; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px; }
+        textarea, input { width: 100%; box-sizing: border-box; margin-bottom: 20px; padding: 12px; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+        textarea:focus, input:focus { border-color: #007bff; outline: none; }
+        button { background: #007bff; color: white; font-weight: 600; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; transition: background 0.2s; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #audioContainer { margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
+        audio { width: 100%; outline: none; }
+        #error { color: #dc3545; margin-top: 15px; font-size: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Teste de API Text-to-Speech</h2>
+        
+        <label>Token da API (Se configurado no .env):</label>
+        <input type="text" id="apiToken" placeholder="sk_piper_...">
+        
+        <label>Texto para converter em voz:</label>
+        <textarea id="textInput" rows="5" placeholder="Olá! Digite seu texto aqui para testar a API."></textarea>
+        
+        <button id="btnSynthesize">Gerar Áudio</button>
+        <div id="error"></div>
+        
+        <div id="audioContainer" style="display: none;">
+            <label>Áudio gerado:</label>
+            <audio id="audioPlayer" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('btnSynthesize').addEventListener('click', async () => {
+            const text = document.getElementById('textInput').value.trim();
+            const token = document.getElementById('apiToken').value.trim();
+            const errorDiv = document.getElementById('error');
+            const audioContainer = document.getElementById('audioContainer');
+            const audioPlayer = document.getElementById('audioPlayer');
+            const btn = document.getElementById('btnSynthesize');
+
+            errorDiv.textContent = '';
+            audioContainer.style.display = 'none';
+
+            if (!text) {
+                errorDiv.textContent = 'Por favor, digite algum texto.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Gerando...';
+
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) {
+                    // Aceita tanto "Bearer Token" quanto apenas o "Token" direto que configuramos
+                    headers['Authorization'] = `Bearer ${token}`; 
+                }
+
+                const response = await fetch('/api/synthesize', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ text })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || 'Erro interno no servidor ao gerar áudio');
+                }
+
+                const blob = await response.blob();
+                audioPlayer.src = URL.createObjectURL(blob);
+                audioContainer.style.display = 'block';
+                audioPlayer.play();
+            } catch (err) {
+                errorDiv.textContent = err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Gerar Áudio';
+            }
+        });
+    </script>
+</body>
+</html>
